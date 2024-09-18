@@ -14,15 +14,20 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useToastHook from "../molecules/ToastHook";
 import { useDispatch, useSelector } from "react-redux";
-import {login} from "../features/loginSlice";
-const Login = () => {
+import {createUser} from "../features/createUserSlice";
+const Register = () => {
   const dispatch = useDispatch();
-
-  const loginState = useSelector((state) => state.login);
+  const isValidEmail = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/g;
+  const createUserState = useSelector((state) => state.createUser);
+  const [validationResults, setValidationResults] = useState({
+    hasUppercase: false,
+    isAlphanumeric: false,
+    isValidLength: false,
+    isValid: false
+  });
   const [toast, setToast] = useToastHook();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const isValidEmail = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/g;
   const [logged, setLogged] = useState(false);
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
@@ -31,7 +36,20 @@ const Login = () => {
   function onChange(value) {
     console.log(value);
   }
-  const handleLogin = (e) => {
+
+  const validatePassword = (password) => {
+    const hasUppercase = /[A-Z]/.test(password);
+    const isAlphanumeric = /^[A-Za-z0-9]+$/.test(password);
+    const isValidLength = password.length >= 8;
+  
+    return {
+      hasUppercase,
+      isAlphanumeric,
+      isValidLength,
+      isValid: hasUppercase && isAlphanumeric && isValidLength
+    };
+  };
+  const handleSignUp = (e) => {
     e.preventDefault();
     const data = {
       email,
@@ -40,11 +58,14 @@ const Login = () => {
     if (!email || !password) {
       return setToast({ message: "All field must be filled", type: "warning" });
     }
+    if (!email.match(isValidEmail)) {
+      return setToast({ message: "Email is not valid", type: "warning" });
+    }
 
-  
-
-
-    dispatch(login({ data }));
+    if (!validationResults.isValid) {
+      return setToast({ message: "Password is not valid", type: "warning" });
+    }
+    dispatch(createUser({ data }));
   };
 
   const setInitialState = () => {
@@ -52,32 +73,28 @@ const Login = () => {
     setPassword("");
   };
 
+  const handleChange = (event) => {
+    const { value } = event.target;
+    setPassword(value);
+    setValidationResults(validatePassword(value));
+  };
+
   useEffect(() => {
-    if (loginState.status !== "idle" || loginState.status !== "loading") {
-      if (loginState.status === "error") {
+    if (createUserState.status !== "idle" || createUserState.status !== "loading") {
+      if (createUserState.status === "error") {
         setToast({ message: "Error occurred", type: "error" });
-      } else if (loginState.status === "loaded") {
-        setToast({ message: "Login success", type: "success" });
-    /*     localStorage.setItem(
-          "user-token",
-          JSON.stringify(loginState.data.data)
-        ); */
-        console.log("success",loginState.data)
-        dispatch(login({ action: "reset" }));
-        navigate(`/Home`);
+      } else if (createUserState.status === "loaded") {
+        setToast({ message: "Sign Up success", type: "success" });
+        dispatch(createUser({ action: "reset" }));
+        setInitialState();
+        setTimeout(() => navigate("/"), 750);
         // setTimeout(() => , 750);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loginState.status]);
+  }, [createUserState.status]);
 
-  useEffect(() => {
-  /*   const isAuthenticated = JSON.parse(localStorage.getItem("user-token"));
-    if (isAuthenticated) {
-      navigate("/");
-    } */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
   return (
     <Flex h={"100vh"} w={"100vw"} bg={"gray.50"}>
       {console.log("trs")}
@@ -99,12 +116,12 @@ const Login = () => {
           boxShadow={"lg"}
         >
           <Text fontWeight={"bold"} mb={"5"} fontSize={30}>
-            Log In
+            Register
           </Text>
           <Text fontWeight={"regular"} mb={"10"} fontSize={16}>
-            Sign in to Ifabula's Online Library
+            Sign Up for Ifabula's Online Library
           </Text>
-          <form onSubmit={(e) => handleLogin(e)}>
+          <form onSubmit={(e) => handleSignUp(e)}>
             <Input
               onChange={(e) => setEmail(e.target.value)}
               size={"lg"}
@@ -116,7 +133,7 @@ const Login = () => {
                 pr="4.5rem"
                 type={show ? "text" : "password"}
                 placeholder="Enter password"
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handleChange}
               />
 
               <InputRightElement width="4.5rem">
@@ -129,10 +146,10 @@ const Login = () => {
               <Link
                 color={"gray.500"}
               >
-                Don't have an Account? Register here
+                Have an Account? Login here
               </Link>
             </Box>
-            {loginState.status === "loading" ? (
+            {createUserState.status === "loading" ? (
               <Flex w={"full"} justifyContent={"center"} alignItems={"center"}>
                 <Spinner size={"xl"} color="green.500" />
               </Flex>
@@ -145,15 +162,26 @@ const Login = () => {
                   textColor={"white"}
                   _hover={{ background: "primary.300", color: "white" }}
                 >
-                  Login
+                  Sign Up
                 </Button>
               </Flex>
             )}
           </form>
+          <Box mt={2}>
+              <Text color={validationResults.hasUppercase ? 'green.500' : 'red.500'}>
+                Must contain at least one uppercase letter
+              </Text>
+              <Text color={validationResults.isAlphanumeric ? 'green.500' : 'red.500'}>
+                Must be alphanumeric (no special characters)
+              </Text>
+              <Text color={validationResults.isValidLength ? 'green.500' : 'red.500'}>
+                Must be at least 8 characters long
+              </Text>
+            </Box>
         </Flex>
       </Flex>
     </Flex>
   );
 };
 
-export default Login;
+export default Register;

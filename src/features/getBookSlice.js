@@ -7,16 +7,15 @@ const initialState = {
   data: "",
 };
 
-export const login = createAsyncThunk("user/login", async (model) => {
+export const getBook = createAsyncThunk("user/getBook", async (model) => {
   if (model.action !== "reset") {
     try {
       const response = await axios({
-        method: "POST",
-        url: process.env.REACT_APP_HOST + `/login`,
+        method: "GET",
+        url: process.env.REACT_APP_HOST + `/book`,
         headers: {
           "Content-Type": "application/json",
         },
-        data: model.data,
       });
       console.log("test",response.data)
       return response.data;
@@ -32,17 +31,17 @@ export const login = createAsyncThunk("user/login", async (model) => {
   return { data: "reset" };
 });
 
-const loginSlice = createSlice({
-  name: "login",
+const getBookSlice = createSlice({
+  name: "getBook",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(login.pending, (state) => {
+      .addCase(getBook.pending, (state) => {
         state.status = "loading";
         state.data = "";
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(getBook.fulfilled, (state, action) => {
         const record = action.payload;
         console.log("record",record)
         if (record.status === 200) {
@@ -61,12 +60,12 @@ const loginSlice = createSlice({
           }
         }
       })
-      .addCase(login.rejected, (state) => {
+      .addCase(getBook.rejected, (state) => {
         state.status = "error";
         state.data = "";
       });
   },
 });
 
-export const loginSelectors = (state) => state.login; // Export a selector to access the state
-export default loginSlice.reducer;
+export const getBookSelectors = (state) => state.getBook; // Export a selector to access the state
+export default getBookSlice.reducer;

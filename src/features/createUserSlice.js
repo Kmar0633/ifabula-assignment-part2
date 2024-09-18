@@ -7,18 +7,19 @@ const initialState = {
   data: "",
 };
 
-export const login = createAsyncThunk("user/login", async (model) => {
+export const createUser = createAsyncThunk("user/signup", async (model) => {
   if (model.action !== "reset") {
     try {
+        console.log("API URL:",  process.env.REACT_APP_HOST);
       const response = await axios({
         method: "POST",
-        url: process.env.REACT_APP_HOST + `/login`,
+        url: process.env.REACT_APP_HOST + `/signup`,
         headers: {
           "Content-Type": "application/json",
         },
         data: model.data,
       });
-      console.log("test",response.data)
+   
       return response.data;
     } catch (error) {
       if (error.response) {
@@ -32,19 +33,19 @@ export const login = createAsyncThunk("user/login", async (model) => {
   return { data: "reset" };
 });
 
-const loginSlice = createSlice({
-  name: "login",
+const createUserSlice = createSlice({
+  name: "createUser",
   initialState,
   reducers: {},
+
   extraReducers: (builder) => {
     builder
-      .addCase(login.pending, (state) => {
+      .addCase(createUser.pending, (state) => {
         state.status = "loading";
         state.data = "";
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(createUser.fulfilled, (state, action) => {
         const record = action.payload;
-        console.log("record",record)
         if (record.status === 200) {
           state.status = "loaded";
           state.code = record.status;
@@ -61,12 +62,12 @@ const loginSlice = createSlice({
           }
         }
       })
-      .addCase(login.rejected, (state) => {
+      .addCase(createUser.rejected, (state) => {
         state.status = "error";
         state.data = "";
       });
   },
 });
 
-export const loginSelectors = (state) => state.login; // Export a selector to access the state
-export default loginSlice.reducer;
+export const createUserSelectors = (state) => state.createUser; // Export a selector to access the state
+export default createUserSlice.reducer;
