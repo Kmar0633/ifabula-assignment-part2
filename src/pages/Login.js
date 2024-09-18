@@ -14,7 +14,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useToastHook from "../molecules/ToastHook";
 import { useDispatch, useSelector } from "react-redux";
-import {login} from "../features/loginSlice";
+import { login } from "../features/loginSlice";
 const Login = () => {
   const dispatch = useDispatch();
 
@@ -41,9 +41,6 @@ const Login = () => {
       return setToast({ message: "All field must be filled", type: "warning" });
     }
 
-  
-
-
     dispatch(login({ data }));
   };
 
@@ -55,14 +52,14 @@ const Login = () => {
   useEffect(() => {
     if (loginState.status !== "idle" || loginState.status !== "loading") {
       if (loginState.status === "error") {
-        setToast({ message: "Error occurred", type: "error" });
+        setToast({ message: `Error occurred ${loginState?.message}`, type: "error" });
       } else if (loginState.status === "loaded") {
         setToast({ message: "Login success", type: "success" });
-    /*     localStorage.setItem(
+        /*     localStorage.setItem(
           "user-token",
           JSON.stringify(loginState.data.data)
         ); */
-        console.log("success",loginState.data)
+        console.log("success", loginState.data);
         dispatch(login({ action: "reset" }));
         navigate(`/Home`);
         // setTimeout(() => , 750);
@@ -72,7 +69,7 @@ const Login = () => {
   }, [loginState.status]);
 
   useEffect(() => {
-  /*   const isAuthenticated = JSON.parse(localStorage.getItem("user-token"));
+    /*   const isAuthenticated = JSON.parse(localStorage.getItem("user-token"));
     if (isAuthenticated) {
       navigate("/");
     } */
@@ -126,9 +123,7 @@ const Login = () => {
               </InputRightElement>
             </InputGroup>
             <Box mb={5}>
-              <Link
-                color={"gray.500"}
-              >
+              <Link href={"#/signup"}>
                 Don't have an Account? Register here
               </Link>
             </Box>

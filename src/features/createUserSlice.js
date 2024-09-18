@@ -59,6 +59,7 @@ const createUserSlice = createSlice({
             state.status = "error";
             state.code = record.status;
             state.data = record.data;
+            state.message = record.message;
           }
         }
       })

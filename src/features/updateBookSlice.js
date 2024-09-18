@@ -7,18 +7,17 @@ const initialState = {
   data: "",
 };
 
-export const login = createAsyncThunk("user/login", async (model) => {
+export const updateBook = createAsyncThunk("user/updateBook", async (model) => {
   if (model.action !== "reset") {
     try {
       const response = await axios({
-        method: "POST",
-        url: process.env.REACT_APP_HOST + `/login`,
+        method: "PUT",
+        url: process.env.REACT_APP_HOST + `/book/${model.id}`,
         headers: {
           "Content-Type": "application/json",
         },
-        data: model.data,
+        data:model.data
       });
-      console.log("test",response.data)
       return response.data;
     } catch (error) {
       if (error.response) {
@@ -32,17 +31,17 @@ export const login = createAsyncThunk("user/login", async (model) => {
   return { data: "reset" };
 });
 
-const loginSlice = createSlice({
-  name: "login",
+const updateBookSlice = createSlice({
+  name: "updateBook",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(login.pending, (state) => {
+      .addCase(updateBook.pending, (state) => {
         state.status = "loading";
         state.data = "";
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(updateBook.fulfilled, (state, action) => {
         const record = action.payload;
         console.log("record",record)
         if (record.status === 200) {
@@ -58,16 +57,15 @@ const loginSlice = createSlice({
             state.status = "error";
             state.code = record.status;
             state.data = record.data;
-            state.message=record.message
           }
         }
       })
-      .addCase(login.rejected, (state) => {
+      .addCase(updateBook.rejected, (state) => {
         state.status = "error";
         state.data = "";
       });
   },
 });
 
-export const loginSelectors = (state) => state.login; // Export a selector to access the state
-export default loginSlice.reducer;
+export const updateBookSelectors = (state) => state.updateBook; // Export a selector to access the state
+export default updateBookSlice.reducer;

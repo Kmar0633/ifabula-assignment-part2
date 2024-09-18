@@ -7,16 +7,15 @@ const initialState = {
   data: "",
 };
 
-export const login = createAsyncThunk("user/login", async (model) => {
+export const getAllCustomers = createAsyncThunk("user/getAllCustomers", async (model) => {
   if (model.action !== "reset") {
     try {
       const response = await axios({
-        method: "POST",
-        url: process.env.REACT_APP_HOST + `/login`,
+        method: "GET",
+        url: process.env.REACT_APP_HOST + `/customers`,
         headers: {
           "Content-Type": "application/json",
         },
-        data: model.data,
       });
       console.log("test",response.data)
       return response.data;
@@ -32,17 +31,17 @@ export const login = createAsyncThunk("user/login", async (model) => {
   return { data: "reset" };
 });
 
-const loginSlice = createSlice({
-  name: "login",
+const getAllCustomersSlice = createSlice({
+  name: "getAllCustomers",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(login.pending, (state) => {
+      .addCase(getAllCustomers.pending, (state) => {
         state.status = "loading";
         state.data = "";
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(getAllCustomers.fulfilled, (state, action) => {
         const record = action.payload;
         console.log("record",record)
         if (record.status === 200) {
@@ -58,16 +57,15 @@ const loginSlice = createSlice({
             state.status = "error";
             state.code = record.status;
             state.data = record.data;
-            state.message=record.message
           }
         }
       })
-      .addCase(login.rejected, (state) => {
+      .addCase(getAllCustomers.rejected, (state) => {
         state.status = "error";
         state.data = "";
       });
   },
 });
 
-export const loginSelectors = (state) => state.login; // Export a selector to access the state
-export default loginSlice.reducer;
+export const getAllCustomersSelectors = (state) => state.getAllCustomers; // Export a selector to access the state
+export default getAllCustomersSlice.reducer;

@@ -14,7 +14,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useToastHook from "../molecules/ToastHook";
 import { useDispatch, useSelector } from "react-redux";
-import {createUser} from "../features/createUserSlice";
+import { createUser } from "../features/createUserSlice";
 const Register = () => {
   const dispatch = useDispatch();
   const isValidEmail = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/g;
@@ -23,7 +23,7 @@ const Register = () => {
     hasUppercase: false,
     isAlphanumeric: false,
     isValidLength: false,
-    isValid: false
+    isValid: false,
   });
   const [toast, setToast] = useToastHook();
   const [email, setEmail] = useState("");
@@ -41,12 +41,12 @@ const Register = () => {
     const hasUppercase = /[A-Z]/.test(password);
     const isAlphanumeric = /^[A-Za-z0-9]+$/.test(password);
     const isValidLength = password.length >= 8;
-  
+
     return {
       hasUppercase,
       isAlphanumeric,
       isValidLength,
-      isValid: hasUppercase && isAlphanumeric && isValidLength
+      isValid: hasUppercase && isAlphanumeric && isValidLength,
     };
   };
   const handleSignUp = (e) => {
@@ -80,9 +80,14 @@ const Register = () => {
   };
 
   useEffect(() => {
-    if (createUserState.status !== "idle" || createUserState.status !== "loading") {
+    
+    if (
+      createUserState.status !== "idle" ||
+      createUserState.status !== "loading"
+    ) {
       if (createUserState.status === "error") {
-        setToast({ message: "Error occurred", type: "error" });
+        console.log(createUserState)
+        setToast({ message: `Error occurred: ${createUserState?.message}`, type: "error" });
       } else if (createUserState.status === "loaded") {
         setToast({ message: "Sign Up success", type: "success" });
         dispatch(createUser({ action: "reset" }));
@@ -93,7 +98,6 @@ const Register = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createUserState.status]);
-
 
   return (
     <Flex h={"100vh"} w={"100vw"} bg={"gray.50"}>
@@ -143,9 +147,7 @@ const Register = () => {
               </InputRightElement>
             </InputGroup>
             <Box mb={5}>
-              <Link
-                color={"gray.500"}
-              >
+              <Link color={"gray.500"} href={"/"}>
                 Have an Account? Login here
               </Link>
             </Box>
@@ -168,16 +170,22 @@ const Register = () => {
             )}
           </form>
           <Box mt={2}>
-              <Text color={validationResults.hasUppercase ? 'green.500' : 'red.500'}>
-                Must contain at least one uppercase letter
-              </Text>
-              <Text color={validationResults.isAlphanumeric ? 'green.500' : 'red.500'}>
-                Must be alphanumeric (no special characters)
-              </Text>
-              <Text color={validationResults.isValidLength ? 'green.500' : 'red.500'}>
-                Must be at least 8 characters long
-              </Text>
-            </Box>
+            <Text
+              color={validationResults.hasUppercase ? "green.500" : "red.500"}
+            >
+              Must contain at least one uppercase letter
+            </Text>
+            <Text
+              color={validationResults.isAlphanumeric ? "green.500" : "red.500"}
+            >
+              Must be alphanumeric (no special characters)
+            </Text>
+            <Text
+              color={validationResults.isValidLength ? "green.500" : "red.500"}
+            >
+              Must be at least 8 characters long
+            </Text>
+          </Box>
         </Flex>
       </Flex>
     </Flex>
