@@ -1,10 +1,9 @@
 import {
   Box,
   Button,
+  Checkbox,
   Flex,
   Image,
-  Input,
-  IconButton,
   InputGroup,
   useDisclosure,
   InputRightElement,
@@ -13,13 +12,23 @@ import {
   FormLabel,
   Switch,
   Tr,
+  Table,
+  Stack,
+  Divider,
+  Thead,
+  Tbody,
+  Th,
+  TableContainer,
+  IconButton,
+  Input,
   Spinner,
   FormControl,
   Text,
 } from "@chakra-ui/react";
-import { FiEdit, FiLock, FiUnlock } from "react-icons/fi";
+import { FiPlus, FiDelete, FiTrash } from "react-icons/fi";
 import { Select, chakraComponents } from "chakra-react-select";
-import React, { useEffect, useState, useMemo } from "react";
+
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useToastHook from "../molecules/ToastHook";
 import { useDispatch, useSelector } from "react-redux";
@@ -29,133 +38,153 @@ import { getAllCustomers } from "../features/getAllCustomersSlice";
 import { updateBook } from "../features/updateBookSlice";
 import ModalComponent from "../molecules/ModalComponent";
 import TablePaginate from "../molecules/TablePaginate";
+
+import { createTable } from "../features/createTableSlice";
+import { getTable } from "../features/getTableSlice";
 const Home = () => {
   const dispatch = useDispatch();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [selectedTables, setSelectedTables] = useState([]);
+  const [viewName, setViewName] = useState("");
+  const [joinCondition, setJoinCondition] = useState("");
+  const [selectedFields, setSelectedFields] = useState({
+    books: [],
+    authors: [],
+  });
 
+  const tables = [
+    { label: "books", value: "books" },
+    { label: "authors", value: "authors" },
+    { label: "other_table", value: "other_table" },
+  ];
+
+  const fields = {
+    books: ["title", "date_created", "author"],
+    authors: ["name", "country", "id"],
+    other_table: ["field1", "field2"],
+  };
+  const handleTableChange = (selectedOption) => {
+    const selectedTableValues = selectedOption.map((option) => option.value);
+    setSelectedTables(selectedTableValues);
+  };
+
+  const handleFieldChange = (table, field) => {
+    const updatedFields = selectedFields[table].includes(field)
+      ? selectedFields[table].filter((f) => f !== field)
+      : [...selectedFields[table], field];
+    setSelectedFields({ ...selectedFields, [table]: updatedFields });
+  };
   const loginState = useSelector((state) => state.login);
   const getBookState = useSelector((state) => state.getBook);
   const updateBookState = useSelector((state) => state.updateBook);
+  const createTableState = useSelector((state) => state.createTable);
+  const getTableState = useSelector((state) => state.getTable);
   const getAllCustomersState = useSelector((state) => state.getAllCustomers);
   const [toast, setToast] = useToastHook();
   const [email, setEmail] = useState("");
   const [isBorrowed, setIsBorrowed] = useState(false);
   const [password, setPassword] = useState("");
+  const [tableName, setTableName] = useState("");
   const [logged, setLogged] = useState(false);
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
   const [operation, setOperation] = useState("");
-  const [metadata, setMetadata] = useState({});
+  const [metadata, setMetadata] = useState({ fieldName: "", dataType: "" });
   const [bookStatus, setBookStatus] = useState({});
-  const dateToDateInputFormat = (string) => {
-    const date = new Date(string);
-    const year = date.getFullYear();
-    let month = date.getMonth() + 1;
-    month = month < 10 ? `0${month}` : month;
-    let day = date.getDate();
-    day = day < 10 ? `0${day}` : day;
+  const [rows, setRows] = useState([
+    { fieldName: "", dataType: "", isPrimaryKey: false },
+  ]);
 
-    return `${year}-${month}-${day}`;
-  };
   const handleOperation = () => {
-    if (
-      (!metadata.dueDate || !metadata.borrowedDate || !metadata.user) &&
-      isBorrowed === true
-    ) {
+    if (tableName === "") {
       return setToast({
-        message:
-          "Book due date, borrowed date and user date must be filled if the user borrows a book",
+        message: `Error: Input a table name`,
         type: "warning",
       });
     }
-    console.log(metadata);
-    const modifiedMetadata = {
-      ...metadata,
-      isBorrowed: isBorrowed,
-    };
-
-    dispatch(updateBook({ id: modifiedMetadata.id, data: modifiedMetadata }));
-  };
-
-  const handleSwitchChange = () => {
-    const newBorrowedState = !isBorrowed;
-    setIsBorrowed(newBorrowedState);
-
-    if (!newBorrowedState) {
-      // Reset dueDate and user when the switch is turned off (book is not borrowed)
-      setMetadata((prevMetadata) => ({
-        ...prevMetadata,
-        borrowedDate: "",
-        dueDate: "",
-        user: "",
-      }));
+    if (rows.length < 1) {
+      return setToast({
+        message: `Error: Input at least one row`,
+        type: "warning",
+      });
     }
+    for (let i = 0; i < rows.length; i++) {
+      const { fieldName, dataType, isPrimaryKey } = rows[i];
+
+      if (fieldName === "") {
+        return setToast({
+          message: `Error: Input all field names`,
+          type: "warning",
+        });
+      }
+
+      if (!dataType || !dataType.id) {
+        return setToast({
+          message: `Error: Input all data types`,
+          type: "warning",
+        });
+      }
+
+      // Check if isPrimaryKey is true for more than one row
+      if (isPrimaryKey && rows.filter((row) => row.isPrimaryKey).length > 1) {
+        return setToast({
+          message: `Error: Only one primary key is allowed`,
+          type: "warning",
+        });
+      }
+    }
+    console.log(rows);
+    const metadata = { tableName: tableName, data: rows };
+    dispatch(createTable({ data: metadata }));
   };
 
-  const getStatus = (dateBorrowed, dueDate) => {
-    if (!dateBorrowed) {
-      return "Available";
-    } else if (dateBorrowed <= dueDate && new Date() < new Date(dueDate)) {
-      return "Borrowed";
-    } else if (new Date() > new Date(dueDate)) {
-      return "Overdue";
-    }
+  const addRow = () => {
+    setRows([...rows, { fieldName: "", dataType: "", isPrimaryKey: false }]);
   };
+
+  const deleteRow = (index: number) => {
+    const updatedRows = rows.filter((_, i) => i !== index);
+    setRows(updatedRows);
+  };
+
+  const handleInputChange = (index: number, key: string, value: string) => {
+    const updatedRows = rows.map((row, i) =>
+      i === index ? { ...row, [key]: value } : row
+    );
+    setRows(updatedRows);
+  };
+
+  const handleSwitchChange = (index: number) => {
+    const updatedRows = rows.map((row, i) =>
+      i === index ? { ...row, isPrimaryKey: !row.isPrimaryKey } : row
+    );
+    setRows(updatedRows);
+  };
+
   useEffect(() => {
     dispatch(getBook({}));
     dispatch(getAllCustomers({}));
+    dispatch(getTable({}))
   }, [dispatch]);
 
   useEffect(() => {
-    // Added check for addDoctorState
-    if (
-      updateBookState?.status !== "idle" ||
-      updateBookState?.status !== "loading"
-    ) {
-      if (updateBookState?.status === "error") {
-        setToast({
-          message: `Error occurred, ${updateBookState?.data?.message}`,
-          type: "error",
-        });
-        dispatch(updateBook({ action: "reset" }));
-      } else if (updateBookState?.status === "loaded") {
-        setToast({
-          message: `Book Status Successfully Updated`,
-          type: "success",
-        });
-        dispatch(updateBook({ action: "reset" }));
-        setTimeout(() => dispatch(getBook({})), 750);
-        onClose();
-      }
-    }
-  }, [dispatch, updateBookState, setToast]);
-  const itemListHead = [
-    "#",
-    "Title",
-    "Author",
-    "Description",
-    "Borrowed Date",
-    "Borrowed Due Date",
-    "Status",
-    "Action",
-  ];
-  const filteredItem = useMemo(() => {
-    console.log(bookStatus)
-    if (getBookState.data && getBookState.data.length > 0) {
-      return getBookState.data.filter(book => {
-        // Ensure dateBorrowed and dueDate are valid
-        if (book.dateBorrowed && book.dueDate) {
-          const status = getStatus(book.dateBorrowed, book.dueDate);
-          // Filter based on desiredStatus if it's not null
-          return bookStatus.value ? status === bookStatus.value : true;
-        }
-        // If dateBorrowed or dueDate is null, consider the book in the results
-        return true;
+    if (createTableState?.status === "error") {
+      console.log(createTableState);
+      setToast({
+        message: `Error occurred, ${createTableState?.message}`,
+        type: "error",
       });
+      dispatch(createTable({ action: "reset" }));
+    } else if (createTableState?.status === "loaded") {
+      setToast({
+        message: `Table Successfully created`,
+        type: "success",
+      });
+      dispatch(createTable({ action: "reset" }));
+      setTimeout(() => window.location.reload(), 750);
+      onClose();
     }
-    return [];
-  }, [getBookState.data, bookStatus.value]);
-  
+  }, [dispatch, createTableState, setToast]);
 
   return (
     <Flex
@@ -169,116 +198,118 @@ const Home = () => {
         flexDir={"column"}
         px={"15px"}
         py={"10px"}
-        w={"100%"} // Ensure the Flex takes full width
-        maxW={"1200px"} // Optionally, set a max width if you want to limit it
-        h={"100%"} // Ensure the Flex takes full height
+        w={"100%"}
+        maxW={"1200px"}
+        h={"100%"}
         borderRadius={"10px"}
         bg={"white"}
         boxShadow={"lg"}
       >
         <Text fontSize={"2xl"} fontWeight={"bold"} textAlign={"center"} mb={4}>
-          Ifabula Online Library
+          Ifabula Database
         </Text>
         <Flex mb={"10px"} w={"100%"}>
-          <Select
-            menuPortalTarget={document.body}
-            isClearable={true}
-            styles={{
-              menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+          <Button
+            colorScheme={"green"}
+            onClick={() => {
+              setRows([{ fieldName: "", dataType: "", isPrimaryKey: false }]);
+              setTableName("");
+              onOpen();
             }}
-            options={[
-              {
-                label: "Available",
-                value: "Available",
-                // The option color scheme overrides the global
-              },
-              {
-                label: "Overdue",
-                value: "Overdue",
-              },
-              {
-                label: "Borrowed",
-                value: "Borrowed",
-              },
-            ]}
-            placeholder="Book Status"
-            onChange={(e) => {
-              setBookStatus({ id: e?.value, name: e?.label });
-            }}
-          />
+            ml={3}
+          >
+            Create New Table
+          </Button>
         </Flex>
-        <TablePaginate
-          tableStatus={getBookState.status}
-          tableHead={itemListHead}
-          tableItem={filteredItem.map((sm, i) => (
-            <Tr key={i}>
-              <Td textAlign={"center"}>{i + 1}</Td>
-              <Td maxW={"100%"}>{`${sm?.title ? sm?.title : "-"}`}</Td>
-              <Td maxW={"100%"}>{`${sm?.author ? sm?.author : "-"}`}</Td>
-              <Td maxW={"100%"}>{`${
-                sm?.description ? sm?.description : "-"
-              }`}</Td>
-              <Td maxW={"100%"}>{`${
-                sm?.borrowedDate
-                  ? new Date(sm?.borrowedDate).toDateString()
-                  : "-"
-              }`}</Td>
-              <Td maxW={"100%"}>
-                {`${sm?.dueDate ? new Date(sm?.dueDate).toDateString() : "-"}`}{" "}
-              </Td>
-              <Td maxW={"100%"}>{getStatus(sm?.borrowedDate, sm?.dueDate)}</Td>
-              <Td textAlign={"center"}>
-                <Box
-                  display="flex"
-                  justifyContent="center"
-                  alignContent="center"
-                  alignItems="center"
-                >
-                  <IconButton
-                    onClick={() => {
-                      setOperation("update");
-                      console.log("rec");
-                      setMetadata({
-                        ...sm,
-                        id: sm.id,
-                        title: sm.title,
-                        author: sm.author,
-                        description: sm.description,
-                        borrowedDate: sm.borrowedDate
-                          ? dateToDateInputFormat(sm.borrowedDate)
-                          : "",
-                        dueDate: sm.dueDate
-                          ? dateToDateInputFormat(sm.dueDate)
-                          : "",
-                        user: {
-                          id: sm?.MasterUser[0]?.id,
-                          email: sm?.MasterUser[0]?.email,
-                        },
-                      });
-                      if (
-                        sm.borrowedDate &&
-                        sm.dueDate &&
-                        sm.MasterUser.length > 0
-                      ) {
-                        setIsBorrowed(true);
-                      }
-                      console.log("metadata", metadata);
-                      onOpen();
-                    }}
-                    size={"md"}
-                    color={"white"}
-                    bgColor={"#ECC94B"}
-                    mr={3}
-                    icon={<FiEdit />}
-                  />
-                </Box>
-              </Td>
-            </Tr>
-          ))}
-        />
+
+        <Box maxW="800px" mx="auto" p={6}>
+          <Text fontSize="2xl" mb={4}>
+            View Creation Interface
+          </Text>
+          <Stack spacing={4}>
+            {/* View Name Input */}
+            <Box>
+              <FormLabel>View Name:</FormLabel>
+              <Input
+                placeholder="Enter view name"
+                value={viewName}
+                onChange={(e) => setViewName(e.target.value)}
+              />
+            </Box>
+
+            {/* Select Tables to Join using react-select */}
+            <Box>
+              <FormLabel>Select Tables to Join:</FormLabel>
+              <Select
+                menuPortalTarget={document.body}
+                isMulti
+                isClearable
+                styles={{
+                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                }}
+                options={
+                  getTableState.data &&
+                  getTableState.data.length > 0
+                    ? getTableState.data.map((curr) => ({
+                        label: curr.tableName,
+                        value: curr.tableName,
+                      }))
+                    : []
+                }
+                placeholder="Select tables"
+                onChange={handleTableChange}
+              />
+            </Box>
+
+            {/* Field Selection from Tables */}
+            <Box>
+              <FormLabel>Select Fields from Tables:</FormLabel>
+              <Stack direction="row" spacing={6}>
+                {selectedTables.map((table) => (
+                  <Box key={table}>
+                    <Text fontWeight="bold">{table}</Text>
+                    {fields[table].map((field) => (
+                      <Checkbox
+                        key={field}
+                        isChecked={selectedFields[table]?.includes(field)}
+                        onChange={() => handleFieldChange(table, field)}
+                      >
+                        {field}
+                      </Checkbox>
+                    ))}
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+
+            {/* Configure Join Condition */}
+            {selectedTables.length >= 2 && (
+              <Box>
+                <FormLabel>Configure Join Condition:</FormLabel>
+                <Input
+                  placeholder="books.author = authors.name"
+                  value={joinCondition}
+                  onChange={(e) => setJoinCondition(e.target.value)}
+                />
+              </Box>
+            )}
+
+            <Divider />
+
+            {/* Save View Button */}
+            <Button
+              colorScheme="teal"
+              onClick={() => console.log("View saved!")}
+            >
+              Save View
+            </Button>
+          </Stack>
+        </Box>
+
         <ModalComponent
-          title={`UPDATE BORROW STATUS`}
+          title={`CREATE TABLE`}
           isOpen={isOpen}
+          size={"4xl"}
           onClose={onClose}
           footer={
             <Flex w={"full"} justifyContent={"flex-end"} gap={3}>
@@ -286,198 +317,99 @@ const Home = () => {
                 Cancel
               </Button>
               <Button onClick={handleOperation} colorScheme="twitter">
-                {"UPDATE"}
+                {"CREATE TABLE"}
               </Button>
             </Flex>
           }
         >
-          <Text
-            mb={3}
-            textAlign={"center"}
-            display={
-              ["activate", "inactivate"].includes(operation) ? "block" : "none"
-            }
-          >
-            Are you sure you want to Update
-          </Text>
-          <Flex flexDir={"column"} gap={2}>
-            <FormControl
-              display={"flex"}
-              alignItems={"center"}
-              isRequired={!["activate", "inactivate"].includes(operation)}
-              isDisabled={true}
-            >
-              <FormLabel w={"20vw"}>Title</FormLabel>
-              <Input
-                w={"full"}
-                placeholder="Book Title"
-                value={metadata.title ? metadata.title : ""}
-                onChange={(e) => {
-                  setMetadata({
-                    ...metadata,
-                    title: e.target.value?.toUpperCase(),
-                  });
-                }}
-              />
-            </FormControl>
-            <FormControl
-              display={"flex"}
-              alignItems={"center"}
-              isRequired={!["activate", "inactivate"].includes(operation)}
-              isDisabled={true}
-            >
-              <FormLabel w={"20vw"}>Author</FormLabel>
-              <Input
-                w={"full"}
-                placeholder="Book author"
-                value={metadata.author ? metadata.author : ""}
-                onChange={(e) => {
-                  setMetadata({
-                    ...metadata,
-                    author: e.target.value?.toUpperCase(),
-                  });
-                }}
-              />
-            </FormControl>
+          <Flex marginBottom={"10px"} justifyContent={"flex-end"}>
+            <Button colorScheme={"blue"} onClick={addRow} ml={3}>
+              Add Row
+            </Button>
+          </Flex>
+          <Flex marginBottom={"10px"} justifyContent={"flex-start"}>
+            <Input
+              width={"250px"}
+              value={tableName}
+              placeholder="Enter Table Name"
+              onChange={(e) => setTableName(e.target.value)}
+            />
+          </Flex>
 
-            <FormControl
-              display={"flex"}
-              alignItems={"center"}
-              isRequired={!["activate", "inactivate"].includes(operation)}
-              isDisabled={true}
+          <Flex>
+            <TableContainer
+              maxHeight={"500px"}
+              width="full"
+              overflowY={"auto"}
+              position={"relative"}
             >
-              <FormLabel w={"20vw"}>Description</FormLabel>
-              <Input
-                w={"full"}
-                placeholder="Book Description"
-                value={metadata.description ? metadata.description : ""}
-                onChange={(e) => {
-                  setMetadata({
-                    ...metadata,
-                    description: e.target.value?.toUpperCase(),
-                  });
-                }}
-              />
-            </FormControl>
-            <FormControl
-              display={"flex"}
-              alignItems={"center"}
-              isRequired={!["activate", "inactivate"].includes(operation)}
-              isDisabled={false}
-            >
-              <FormLabel w={"20vw"}>Is Book Borrowed</FormLabel>
-              <Switch
-                w={"full"}
-                isChecked={isBorrowed}
-                onChange={handleSwitchChange}
-                size={"lg"}
-                colorScheme="red"
-              />
-            </FormControl>
-            <FormControl
-              display={"flex"}
-              alignItems={"center"}
-              isRequired={!["activate", "inactivate"].includes(operation)}
-              isDisabled={!isBorrowed}
-            >
-              <FormLabel w={"20vw"}>Borrowed Date</FormLabel>
-              <Input
-                w={"full"}
-                placeholder="Borrowed Date"
-                type="date"
-                value={metadata.borrowedDate ? metadata?.borrowedDate : ""}
-                onChange={(e) => {
-                  if (e.target.value > metadata.dueDate && metadata.dueDate) {
-                    console.log("test", e.target.value);
-                    console.log("test12", metadata.dueDate);
-                    setToast({
-                      message: "Borrowed Date cannot be after due date",
-                      type: "warning",
-                    });
-                  } else {
-                    setMetadata({
-                      ...metadata,
-                      borrowedDate: e.target.value,
-                    });
-                  }
-                }}
-              />
-            </FormControl>
-            <FormControl
-              display={"flex"}
-              alignItems={"center"}
-              isRequired={!["activate", "inactivate"].includes(operation)}
-              isDisabled={!isBorrowed}
-            >
-              <FormLabel w={"20vw"}>Borrowed Due Date</FormLabel>
-              <Input
-                w={"full"}
-                type="date"
-                placeholder="Borrowed Due Date"
-                value={metadata.dueDate ? metadata?.dueDate : ""}
-                onChange={(e) => {
-                  if (
-                    new Date(e.target.value) <
-                      new Date(metadata.borrowedDate) &&
-                    metadata.borrowedDate
-                  ) {
-                    setToast({
-                      message: "Due date cannot be before borrowed date",
-                      type: "warning",
-                    });
-                  } else {
-                    setMetadata({
-                      ...metadata,
-                      dueDate: e.target.value,
-                    });
-                  }
-                }}
-              />
-            </FormControl>
-            <FormControl
-              display={"flex"}
-              alignItems={"center"}
-              isRequired={!["activate", "inactivate"].includes(operation)}
-              isDisabled={!isBorrowed}
-            >
-              <FormLabel w={"20vw"}>Customer</FormLabel>
-              <Select
-                w={"full"}
-                type="date"
-                chakraStyles={{
-                  container: (provided, state) => ({
-                    ...provided,
-                    w: "full",
-                  }),
-                }}
-                options={
-                  getAllCustomersState.data &&
-                  getAllCustomersState.data.length > 0
-                    ? getAllCustomersState.data.map((item) => {
-                        return {
-                          value: item.id,
-                          label: item.email,
-                        };
-                      })
-                    : []
-                }
-                placeholder="Borrower Email"
-                value={
-                  metadata && metadata.user
-                    ? {
-                        value: metadata.user.id,
-                        label: metadata.user.email,
-                      }
-                    : null
-                }
-                onChange={(e) => {
-                  setMetadata({
-                    ...metadata,
-                    user: { id: e.value, email: e.label },
-                  });
-                }}
-              />
-            </FormControl>
+              <Table variant="simple">
+                <Thead position="sticky" top={0} bg="gray.100" zIndex={1}>
+                  <Tr>
+                    <Th>Field Name</Th>
+                    <Th>Data Type</Th>
+                    <Th>Primary Key?</Th>
+                    <Th>Actions</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {rows.map((row, index) => (
+                    <Tr key={index}>
+                      <Td>
+                        <Input
+                          value={row.fieldName}
+                          placeholder="Field Name"
+                          onChange={(e) =>
+                            handleInputChange(
+                              index,
+                              "fieldName",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </Td>
+                      <Td>
+                        <Select
+                          menuPortalTarget={document.body}
+                          isClearable={true}
+                          styles={{
+                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                          }}
+                          options={[
+                            { label: "INTEGER", value: "INTEGER" },
+                            { label: "TEXT", value: "TEXT" },
+                            { label: "DATE", value: "DATE" },
+                            { label: "TIMESTAMP ", value: "TIMESTAMP " },
+                            { label: "FLOAT", value: "FLOAT" },
+                          ]}
+                          placeholder="Data Type"
+                          onChange={(e) => {
+                            handleInputChange(index, "dataType", {
+                              id: e?.value,
+                              label: e?.label,
+                            });
+                          }}
+                        />
+                      </Td>
+                      <Td>
+                        <Switch
+                          isChecked={row.isPrimaryKey}
+                          onChange={() => handleSwitchChange(index)}
+                        />
+                      </Td>
+                      <Td>
+                        <IconButton
+                          colorScheme={"red"}
+                          aria-label="Delete Row"
+                          icon={<FiTrash />}
+                          onClick={() => deleteRow(index)}
+                        />
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
           </Flex>
         </ModalComponent>
       </Flex>
