@@ -43,7 +43,6 @@ const updateBookSlice = createSlice({
       })
       .addCase(updateBook.fulfilled, (state, action) => {
         const record = action.payload;
-        console.log("record",record)
         if (record.status === 200) {
           state.status = "loaded";
           state.code = record.status;

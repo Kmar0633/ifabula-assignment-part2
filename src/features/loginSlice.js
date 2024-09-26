@@ -18,7 +18,6 @@ export const login = createAsyncThunk("user/login", async (model) => {
         },
         data: model.data,
       });
-      console.log("test",response.data)
       return response.data;
     } catch (error) {
       if (error.response) {
@@ -44,7 +43,6 @@ const loginSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         const record = action.payload;
-        console.log("record",record)
         if (record.status === 200) {
           state.status = "loaded";
           state.code = record.status;

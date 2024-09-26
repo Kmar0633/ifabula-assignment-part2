@@ -17,7 +17,6 @@ export const getBook = createAsyncThunk("user/getBook", async (model) => {
           "Content-Type": "application/json",
         },
       });
-      console.log("test",response.data)
       return response.data;
     } catch (error) {
       if (error.response) {
@@ -43,7 +42,6 @@ const getBookSlice = createSlice({
       })
       .addCase(getBook.fulfilled, (state, action) => {
         const record = action.payload;
-        console.log("record",record)
         if (record.status === 200) {
           state.status = "loaded";
           state.code = record.status;

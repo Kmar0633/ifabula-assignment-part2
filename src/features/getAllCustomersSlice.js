@@ -17,7 +17,6 @@ export const getAllCustomers = createAsyncThunk("user/getAllCustomers", async (m
           "Content-Type": "application/json",
         },
       });
-      console.log("test",response.data)
       return response.data;
     } catch (error) {
       if (error.response) {
@@ -43,7 +42,7 @@ const getAllCustomersSlice = createSlice({
       })
       .addCase(getAllCustomers.fulfilled, (state, action) => {
         const record = action.payload;
-        console.log("record",record)
+
         if (record.status === 200) {
           state.status = "loaded";
           state.code = record.status;

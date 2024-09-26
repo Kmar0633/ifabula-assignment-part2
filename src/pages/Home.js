@@ -64,15 +64,29 @@ const Home = () => {
     other_table: ["field1", "field2"],
   };
   const handleTableChange = (selectedOption) => {
-    const selectedTableValues = selectedOption.map((option) => option.value);
+    const selectedTableValues = selectedOption.map((option) => option.label);
+console.log(selectedOption)
+const selectedFieldValues = selectedOption[0]?.value.map(field => ({
+  fieldName: field,
+  isSelected: false
+}));
+    console.log("dex",selectedFieldValues)
+    const fields = selectedOption.reduce((acc, option) => {
+      acc[option.label] = selectedFieldValues;
+      return acc;
+    }, {});
+    
     setSelectedTables(selectedTableValues);
+    setSelectedFields(fields);
   };
 
   const handleFieldChange = (table, field) => {
-    const updatedFields = selectedFields[table].includes(field)
-      ? selectedFields[table].filter((f) => f !== field)
-      : [...selectedFields[table], field];
-    setSelectedFields({ ...selectedFields, [table]: updatedFields });
+    setSelectedFields(prevState => ({
+      ...prevState,
+      [table]: prevState[table].includes(field)
+        ? prevState[table].filter(f => f !== field) // Remove the field if already selected
+        : prevState[table].concat(field), // Add the field if not selected
+    }));
   };
   const loginState = useSelector((state) => state.login);
   const getBookState = useSelector((state) => state.getBook);
@@ -164,7 +178,7 @@ const Home = () => {
   useEffect(() => {
     dispatch(getBook({}));
     dispatch(getAllCustomers({}));
-    dispatch(getTable({}))
+    dispatch(getTable({}));
   }, [dispatch]);
 
   useEffect(() => {
@@ -248,11 +262,10 @@ const Home = () => {
                   menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                 }}
                 options={
-                  getTableState.data &&
-                  getTableState.data.length > 0
+                  getTableState.data && getTableState.data.length > 0
                     ? getTableState.data.map((curr) => ({
                         label: curr.tableName,
-                        value: curr.tableName,
+                        value: curr.fields,
                       }))
                     : []
                 }
@@ -265,20 +278,24 @@ const Home = () => {
             <Box>
               <FormLabel>Select Fields from Tables:</FormLabel>
               <Stack direction="row" spacing={6}>
-                {selectedTables.map((table) => (
-                  <Box key={table}>
-                    <Text fontWeight="bold">{table}</Text>
-                    {fields[table].map((field) => (
-                      <Checkbox
-                        key={field}
-                        isChecked={selectedFields[table]?.includes(field)}
-                        onChange={() => handleFieldChange(table, field)}
-                      >
-                        {field}
-                      </Checkbox>
-                    ))}
-                  </Box>
-                ))}
+                {selectedTables.length > 0 &&
+                  selectedTables.map((table) => (
+                    <Box key={table}>
+                   <Text fontWeight="bold">{table}</Text>
+                     {console.log("check",selectedFields)}
+                      {selectedFields[table]?.length > 0 &&
+                        selectedFields[table].map((field) => (
+                          <Checkbox
+                            key={field.fieldName}
+                            isChecked={field.isSelected}
+                            onChange={() => handleFieldChange(table, field)}
+                          >
+                            {field.fieldName}
+
+                          </Checkbox>
+                        ))}
+                    </Box>
+                  ))}
               </Stack>
             </Box>
 
