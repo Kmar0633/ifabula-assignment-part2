@@ -29,6 +29,7 @@ import { FiPlus, FiDelete, FiTrash } from "react-icons/fi";
 import { Select, chakraComponents } from "chakra-react-select";
 
 import React, { useEffect, useState } from "react";
+import TableView from "./TableView";
 import { useNavigate } from "react-router-dom";
 import useToastHook from "../molecules/ToastHook";
 import { useDispatch, useSelector } from "react-redux";
@@ -41,16 +42,17 @@ import TablePaginate from "../molecules/TablePaginate";
 
 import { createTable } from "../features/createTableSlice";
 import { getTable } from "../features/getTableSlice";
+import { createView } from "../features/createViewSlice";
 const Home = () => {
   const dispatch = useDispatch();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedTables, setSelectedTables] = useState([]);
   const [viewName, setViewName] = useState("");
   const [joinCondition, setJoinCondition] = useState("");
-  const [selectedFields, setSelectedFields] = useState({
-    books: [],
-    authors: [],
-  });
+  const [selectedFields, setSelectedFields] = useState({});
+  const [field1, setField1] = useState({ label: "", value: "" });
+  const [joinType, setJoinType] = useState({ label: "", value: "" });
+  const [field2, setField2] = useState({ label: "", value: "" });
 
   const tables = [
     { label: "books", value: "books" },
@@ -64,34 +66,60 @@ const Home = () => {
     other_table: ["field1", "field2"],
   };
   const handleTableChange = (selectedOption) => {
+    if (selectedOption.length > 2) {
+      return setToast({
+        message: `Error: Only a max of 2 tables can a view be created`,
+        type: "warning",
+      });
+    }
     const selectedTableValues = selectedOption.map((option) => option.label);
-console.log(selectedOption)
-const selectedFieldValues = selectedOption[0]?.value.map(field => ({
-  fieldName: field,
-  isSelected: false
-}));
-    console.log("dex",selectedFieldValues)
-    const fields = selectedOption.reduce((acc, option) => {
-      acc[option.label] = selectedFieldValues;
-      return acc;
-    }, {});
-    
     setSelectedTables(selectedTableValues);
+    const selectedFieldValues = selectedOption.reduce((acc, option) => {
+      if (option?.value) {
+        const fields = option.value.map((field) => ({
+          tableName: option?.label,
+          fieldName: field,
+          isSelected: true,
+        }));
+        return acc.concat(fields);
+      }
+      return acc;
+    }, []);
+
+    const fields = selectedFieldValues.reduce(
+      (acc, { tableName, fieldName, isSelected }) => {
+        if (!acc[tableName]) {
+          acc[tableName] = [];
+        }
+
+        // Here, for example, you only want to keep `fieldName` as a full object when the name is 'title'
+
+        acc[tableName].push({ fieldName, isSelected });
+
+        return acc;
+      },
+      {}
+    );
+
     setSelectedFields(fields);
   };
 
-  const handleFieldChange = (table, field) => {
-    setSelectedFields(prevState => ({
-      ...prevState,
-      [table]: prevState[table].includes(field)
-        ? prevState[table].filter(f => f !== field) // Remove the field if already selected
-        : prevState[table].concat(field), // Add the field if not selected
+  const handleFieldChange = (table, fieldToUpdate) => {
+    setSelectedFields((prevFields) => ({
+      ...prevFields,
+      [table]: prevFields[table].map((field) =>
+        field.fieldName === fieldToUpdate.fieldName
+          ? { ...field, isSelected: !field.isSelected }
+          : field
+      ),
     }));
   };
   const loginState = useSelector((state) => state.login);
   const getBookState = useSelector((state) => state.getBook);
   const updateBookState = useSelector((state) => state.updateBook);
   const createTableState = useSelector((state) => state.createTable);
+  const createViewState = useSelector((state) => state.createView);
+
   const getTableState = useSelector((state) => state.getTable);
   const getAllCustomersState = useSelector((state) => state.getAllCustomers);
   const [toast, setToast] = useToastHook();
@@ -147,7 +175,6 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
         });
       }
     }
-    console.log(rows);
     const metadata = { tableName: tableName, data: rows };
     dispatch(createTable({ data: metadata }));
   };
@@ -182,8 +209,14 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
   }, [dispatch]);
 
   useEffect(() => {
+    if (selectedTables.length < 2) {
+      setField1({ label: "", value: "" });
+      setField2({ label: "", value: "" });
+    }
+  }, [selectedTables]);
+
+  useEffect(() => {
     if (createTableState?.status === "error") {
-      console.log(createTableState);
       setToast({
         message: `Error occurred, ${createTableState?.message}`,
         type: "error",
@@ -199,6 +232,24 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
       onClose();
     }
   }, [dispatch, createTableState, setToast]);
+
+  useEffect(() => {
+    if (createViewState?.status === "error") {
+      setToast({
+        message: `Error occurred, ${createViewState?.message}`,
+        type: "error",
+      });
+      dispatch(createView({ action: "reset" }));
+    } else if (createViewState?.status === "loaded") {
+      setToast({
+        message: `View Successfully created`,
+        type: "success",
+      });
+      dispatch(createView({ action: "reset" }));
+      setTimeout(() => window.location.reload(), 750);
+      onClose();
+    }
+  }, [dispatch, createViewState, setToast]);
 
   return (
     <Flex
@@ -236,6 +287,7 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
           </Button>
         </Flex>
 
+        <TableView />
         <Box maxW="800px" mx="auto" p={6}>
           <Text fontSize="2xl" mb={4}>
             View Creation Interface
@@ -262,7 +314,9 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
                   menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                 }}
                 options={
-                  getTableState.data && getTableState.data.length > 0
+                  selectedTables.length >= 2
+                    ? []
+                    : getTableState.data && getTableState.data.length > 0
                     ? getTableState.data.map((curr) => ({
                         label: curr.tableName,
                         value: curr.fields,
@@ -281,8 +335,8 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
                 {selectedTables.length > 0 &&
                   selectedTables.map((table) => (
                     <Box key={table}>
-                   <Text fontWeight="bold">{table}</Text>
-                     {console.log("check",selectedFields)}
+                      <Text fontWeight="bold">{table}</Text>
+
                       {selectedFields[table]?.length > 0 &&
                         selectedFields[table].map((field) => (
                           <Checkbox
@@ -291,7 +345,6 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
                             onChange={() => handleFieldChange(table, field)}
                           >
                             {field.fieldName}
-
                           </Checkbox>
                         ))}
                     </Box>
@@ -301,14 +354,80 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
 
             {/* Configure Join Condition */}
             {selectedTables.length >= 2 && (
-              <Box>
-                <FormLabel>Configure Join Condition:</FormLabel>
-                <Input
-                  placeholder="books.author = authors.name"
-                  value={joinCondition}
-                  onChange={(e) => setJoinCondition(e.target.value)}
-                />
-              </Box>
+              <>
+                <Flex>
+                  <Select
+                    menuPortalTarget={document.body}
+                    isClearable={false}
+                    styles={{
+                      menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                    }}
+                    options={
+                      selectedTables.length > 0 &&
+                      selectedFields[selectedTables[0]]
+                        ? selectedFields[selectedTables[0]].map((curr) => ({
+                            label: curr.fieldName,
+                            value: curr.fieldName,
+                          }))
+                        : []
+                    }
+                    value={{
+                      label: field1?.label,
+                      value: field1?.value,
+                    }}
+                    onChange={(e) => {
+                      setField1({ label: e.label, value: e.value });
+                    }}
+                    placeholder="Data Type"
+                  />
+
+                  <Select
+                    menuPortalTarget={document.body}
+                    isClearable={false}
+                    styles={{
+                      menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                    }}
+                    options={
+                      selectedTables.length > 1 &&
+                      selectedFields[selectedTables[1]]
+                        ? selectedFields[selectedTables[1]].map((curr) => ({
+                            label: curr.fieldName,
+                            value: curr.fieldName,
+                          }))
+                        : []
+                    }
+                    value={{
+                      label: field2?.label,
+                      value: field2?.value,
+                    }}
+                    onChange={(e) => {
+                      setField2({ label: e.label, value: e.value });
+                    }}
+                    placeholder="Data Type"
+                  />
+                </Flex>
+                <Box>
+                  <FormLabel>Configure Join Condition:</FormLabel>
+                  <Select
+                    menuPortalTarget={document.body}
+                    styles={{
+                      menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                    }}
+                    options={[
+                      { label: "INNER JOIN", value: "INNER JOIN" },
+                      { label: "LEFT JOIN", value: "LEFT JOIN" },
+                      { label: "RIGHT JOIN", value: "RIGHT JOIN" },
+                      { label: "FULL JOIN ", value: "FULL JOIN" },
+                      { label: "CROSS JOIN", value: "CROSS JOIN" },
+                      { label: "SELF JOIN", value: "SELF   JOIN" },
+                    ]}
+                    onChange={(e) => {
+                      setJoinType({ label: e.label, value: e.value });
+                    }}
+                    placeholder="Data Type"
+                  />
+                </Box>
+              </>
             )}
 
             <Divider />
@@ -316,9 +435,48 @@ const selectedFieldValues = selectedOption[0]?.value.map(field => ({
             {/* Save View Button */}
             <Button
               colorScheme="teal"
-              onClick={() => console.log("View saved!")}
+              onClick={() => {
+                if (viewName === "") {
+                  return setToast({
+                    message: `Error: Input View Name`,
+                    type: "warning",
+                  });
+                }
+
+                if (selectedTables?.length === 0) {
+                  return setToast({
+                    message: `Error: No tables were selected`,
+                    type: "warning",
+                  });
+                }
+
+                if (selectedTables?.length > 1) {
+                  if (!field1.value || !field2.value) {
+                    return setToast({
+                      message: `Error: Input both field names for join selected`,
+                      type: "warning",
+                    });
+                  }
+                  if (!joinType.value) {
+                    return setToast({
+                      message: `Error: Join type not selected`,
+                      type: "warning",
+                    });
+                  }
+                }
+                const metadata = {
+                  viewName: viewName,
+                  tableNames: selectedTables,
+                  fields: selectedFields,
+                  joinType: joinType,
+                  field1: field1,
+                  field2: field2,
+                };
+                console.log("metadata", metadata);
+                dispatch(createView({ data: metadata }));
+              }}
             >
-              Save View
+              Create View
             </Button>
           </Stack>
         </Box>
